@@ -25,4 +25,5 @@ enable_sanitizers(project_options)
 # Static analysis
 include(cmake/StaticAnalyzers.cmake)
 
+add_subdirectory(3rdparty)
 add_subdirectory(src)
