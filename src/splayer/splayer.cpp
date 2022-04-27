@@ -36,4 +36,6 @@ void SplayerApp::gui_loop() {
 
     });
 }
+
+SplayerApp::~SplayerApp() { os_window.reset(); }
 }  // namespace splayer

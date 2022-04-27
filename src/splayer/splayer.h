@@ -31,6 +31,7 @@ class SplayerApp final {
 public:
     SplayerApp();
     void gui_loop();
+    ~SplayerApp();
 
 private:
     std::unique_ptr<graphics::Window> os_window;
