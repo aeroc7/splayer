@@ -20,14 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <splayer/splayer.h>
+#include "splayer.h"
+
+#include <splayer/cfg.h>
 #include <splayer/window/window.h>
 
-namespace {
-std::unique_ptr<splayer::SplayerApp> splayer_app;
+namespace splayer {
+SplayerApp::SplayerApp() {
+    os_window = std::make_unique<graphics::Window>();
+    os_window->create_window(cfg::PROJECT_NAME, 500, 500);
 }
 
-int main() {
-    splayer_app = std::make_unique<splayer::SplayerApp>();
-    splayer_app->gui_loop();
+void SplayerApp::gui_loop() {
+    os_window->window_loop([] {
+
+    });
 }
+}  // namespace splayer

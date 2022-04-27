@@ -20,14 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <splayer/splayer.h>
-#include <splayer/window/window.h>
-
-namespace {
-std::unique_ptr<splayer::SplayerApp> splayer_app;
-}
-
-int main() {
-    splayer_app = std::make_unique<splayer::SplayerApp>();
-    splayer_app->gui_loop();
+namespace cfg {
+constexpr auto PROJECT_NAME = DEF_PROJECT_NAME;
 }

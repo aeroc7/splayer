@@ -2,11 +2,21 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Source file storage
 add_library(project_source INTERFACE)
 
+add_subdirectory(splayer)
+
 # Standalone executable
-add_executable(${CMAKE_PROJECT_NAME} main.cpp window.cpp)
+add_executable(${CMAKE_PROJECT_NAME} main.cpp)
 
 # Link our project libraries
 add_library(project_libraries INTERFACE)
+
+target_include_directories(project_source INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}
+)
+
+target_compile_definitions(project_source INTERFACE
+    -DDEF_PROJECT_NAME="${CMAKE_PROJECT_NAME}"
+)
 
 if(WIN32)
     target_link_libraries(project_libraries
