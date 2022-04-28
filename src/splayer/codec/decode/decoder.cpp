@@ -20,25 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <memory>
+#include "decoder.h"
 
-namespace graphics {
-class Window;
-}
-
-namespace splayer {
-class SwDecoder;
-}
-
-namespace splayer {
-class SplayerApp final {
-public:
-    SplayerApp();
-    void gui_loop();
-    ~SplayerApp();
-
-private:
-    std::unique_ptr<graphics::Window> os_window;
-    std::unique_ptr<splayer::SwDecoder> sw_decoder;
-};
-}  // namespace splayer
+namespace splayer {}  // namespace splayer

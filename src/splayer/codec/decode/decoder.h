@@ -20,6 +20,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "codec.h"
+#include <memory>
+#include <string>
 
-namespace splayer {}
+extern "C" {
+#include <libavutil/frame.h>
+}
+
+namespace splayer {
+struct AvFramePtrDeleter {
+    void operator()(AVFrame *f) noexcept { av_frame_free(&f); }
+};
+
+using AVFramePtr = std::unique_ptr<AVFrame, AvFramePtrDeleter>;
+
+enum class DecoderErrorDesc { FAILURE = -1, SUCCESS = 0 };
+class DecoderError {
+public:
+    constexpr DecoderError() = default;
+    constexpr DecoderError(DecoderErrorDesc d) : desc(d) {}
+    constexpr explicit DecoderError(DecoderErrorDesc d, int code) : desc(d), err_code(code) {}
+    constexpr explicit operator bool() const noexcept { return status(); }
+    constexpr bool status() const noexcept { return desc == DecoderErrorDesc::SUCCESS; }
+    constexpr int error_code() const noexcept { return err_code; }
+
+private:
+    DecoderErrorDesc desc{DecoderErrorDesc::SUCCESS};
+    int err_code{};
+};
+
+class Decoder {
+public:
+    virtual DecoderError open_input(const std::string &url) noexcept = 0;
+    virtual ~Decoder() = default;
+
+protected:
+private:
+    friend DecoderError;
+};
+}  // namespace splayer

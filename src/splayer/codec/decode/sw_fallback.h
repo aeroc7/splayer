@@ -20,10 +20,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "decoder.h"
+
+struct AVFormatContext;
+struct AVCodecContext;
+struct AVCodec;
+struct AVPacket;
+
 namespace splayer {
-class Codec {
+class SwDecoder final : public Decoder {
 public:
-protected:
+    using CallbackType = void (*)(const AVFrame *f);
+    SwDecoder(CallbackType cb);
+    virtual ~SwDecoder() override;
+
+    DecoderError open_input(const std::string &url) noexcept override;
+
 private:
+    DecoderError find_best_stream() noexcept;
+    DecoderError find_decoder() noexcept;
+    int get_decoder_id() noexcept;
+    DecoderError setup_decoder() noexcept;
+    DecoderError open_codec() noexcept;
+
+    bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
+
+    AVFormatContext *format_ctx_{nullptr};
+    AVCodec *codec_{nullptr};
+    AVCodecContext *codec_ctx_orig_{nullptr}, *codec_ctx_{nullptr};
+
+    AVFramePtr frame;
+
+    CallbackType onframe_cb{nullptr};
+
+    int best_vid_stream_id_{-1};
 };
 }  // namespace splayer

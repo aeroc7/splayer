@@ -1,0 +1,150 @@
+// MIT License
+//
+// Copyright (c) 2022 Bennett Anderson
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#include "sw_fallback.h"
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+}
+
+#include <cassert>
+#include <iostream>
+
+namespace splayer {
+SwDecoder::SwDecoder(CallbackType cb) : onframe_cb(cb) {
+    frame.reset(av_frame_alloc());
+    if (!frame) {
+        std::cerr << "Failed to allocate frame.\n";
+        return;
+    }
+}
+
+// TODO: In the event that failure happens further down, and we return, we fail to free/close a
+// bunch of contexts that were made
+DecoderError SwDecoder::open_input(const std::string &url) noexcept {
+    int ret{};
+
+    // Note: avformat_open_input will allocate our context for us.
+    ret = avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr);
+    if (ret < 0) {
+        std::cerr << "Failed to open input stream and/or read the header of: " << url << '\n';
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+
+    ret = avformat_find_stream_info(format_ctx_, nullptr);
+    if (ret < 0) {
+        std::cerr << "Failed to read stream information.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+
+    if (const auto err = find_best_stream(); !err) {
+        return err;
+    }
+
+    return {};
+}
+
+DecoderError SwDecoder::find_best_stream() noexcept {
+    int ret{};
+
+    ret = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    if (ret < 0) {
+        std::cerr << "Failed to find valid stream/decoder\n";
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+    best_vid_stream_id_ = ret;
+
+    return find_decoder();
+}
+
+DecoderError SwDecoder::find_decoder() noexcept {
+    const auto decoder_id = get_decoder_id();
+
+    codec_ = avcodec_find_decoder(static_cast<AVCodecID>(decoder_id));
+    if (!codec_) {
+        std::cerr << "Unsupported codec\n";
+        return DecoderError{DecoderErrorDesc::FAILURE};
+    }
+
+    return setup_decoder();
+}
+
+int SwDecoder::get_decoder_id() noexcept {
+    assert(best_vid_stream_id_ >= 0);
+
+    const AVCodecID id = format_ctx_->streams[best_vid_stream_id_]->codecpar->codec_id;
+
+    return id;
+}
+
+DecoderError SwDecoder::setup_decoder() noexcept {
+    assert(codec_);
+    int ret{};
+
+    codec_ctx_orig_ = avcodec_alloc_context3(codec_);
+    if (!codec_ctx_orig_) {
+        std::cerr << "Failed to create codec context.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE};
+    }
+
+    ret = avcodec_parameters_to_context(
+        codec_ctx_orig_, format_ctx_->streams[best_vid_stream_id_]->codecpar);
+    if (ret < 0) {
+        std::cerr << "Failed to fill context with paramters.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+
+    codec_ctx_ = avcodec_alloc_context3(codec_);
+    if (!codec_ctx_) {
+        std::cerr << "Failed to create codec context copy.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE};
+    }
+
+    ret = avcodec_parameters_to_context(
+        codec_ctx_, format_ctx_->streams[best_vid_stream_id_]->codecpar);
+    if (ret < 0) {
+        std::cerr << "Failed to fill context copy with paramters.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+
+    return open_codec();
+}
+
+DecoderError SwDecoder::open_codec() noexcept {
+    int ret{};
+
+    ret = avcodec_open2(codec_ctx_, codec_, nullptr);
+    if (ret < 0) {
+        std::cerr << "Failed to open codec.\n";
+        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+    }
+
+    return DecoderError{DecoderErrorDesc::SUCCESS};
+}
+
+bool SwDecoder::packet_is_from_video_stream(const AVPacket *p) const noexcept {
+    return (p->stream_index == best_vid_stream_id_);
+}
+
+SwDecoder::~SwDecoder() { avcodec_free_context(&codec_ctx_); }
+}  // namespace splayer
