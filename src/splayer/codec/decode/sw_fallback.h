@@ -51,7 +51,7 @@ private:
 
     AVFramePtr frame;
 
-    CallbackType onframe_cb{nullptr};
+    [[maybe_unused]] CallbackType onframe_cb{nullptr};
 
     int best_vid_stream_id_{-1};
 };

@@ -19,6 +19,14 @@ target_link_libraries(ffmpeg INTERFACE
     ${AVDEVICE_LIBRARY}
 )
 
-target_include_directories(ffmpeg INTERFACE
-    /usr/include/ffmpeg
-)
+if(UNIX AND NOT APPLE)
+    target_include_directories(ffmpeg INTERFACE
+        /usr/include/ffmpeg
+    )
+elseif(APPLE)
+    target_include_directories(ffmpeg INTERFACE
+        /opt/homebrew/include
+    )
+else()
+    message(FATAL "ffmpeg include directory not specificed on this platform yet!")
+endif()

@@ -34,6 +34,10 @@ elseif(UNIX AND NOT APPLE)
             GL
    )
 elseif(APPLE)
+    target_link_libraries(project_libraries
+        INTERFACE
+        "-framework OpenGL"
+    )
 endif()
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
