@@ -25,15 +25,23 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
+
+#include <splayer/to_file.h>
 
 #include <cassert>
 #include <iostream>
 
 namespace splayer {
 SwDecoder::SwDecoder(CallbackType cb) : onframe_cb(cb) {
+    assert(onframe_cb != nullptr);
+
     frame.reset(av_frame_alloc());
-    if (!frame) {
+    frame_cnvt.reset(av_frame_alloc());
+
+    if (!frame || !frame_cnvt) {
         std::cerr << "Failed to allocate frame.\n";
         return;
     }
@@ -57,11 +65,16 @@ DecoderError SwDecoder::open_input(const std::string &url) noexcept {
         return DecoderError{DecoderErrorDesc::FAILURE, ret};
     }
 
-    if (const auto err = find_best_stream(); !err) {
+    // Initialization
+    if (const auto err = find_best_stream(); err) {
         return err;
     }
 
-    return {};
+    if (const auto err = decode_frames(); err) {
+        return err;
+    }
+
+    return DecoderError{DecoderErrorDesc::SUCCESS};
 }
 
 DecoderError SwDecoder::find_best_stream() noexcept {
@@ -80,7 +93,8 @@ DecoderError SwDecoder::find_best_stream() noexcept {
 DecoderError SwDecoder::find_decoder() noexcept {
     const auto decoder_id = get_decoder_id();
 
-    codec_ = const_cast<AVCodec *>(avcodec_find_decoder(static_cast<AVCodecID>(decoder_id)));
+    codec_ =
+        /*const_cast<AVCodec *>(*/ avcodec_find_decoder(static_cast<AVCodecID>(decoder_id)) /*)*/;
     if (!codec_) {
         std::cerr << "Unsupported codec\n";
         return DecoderError{DecoderErrorDesc::FAILURE};
@@ -144,6 +158,53 @@ DecoderError SwDecoder::open_codec() noexcept {
 
 bool SwDecoder::packet_is_from_video_stream(const AVPacket *p) const noexcept {
     return (p->stream_index == best_vid_stream_id_);
+}
+
+DecoderError SwDecoder::decode_frames() noexcept {
+    constexpr auto FRAME_BUF_ALIGNMENT = 32;
+    std::uint8_t *buf = nullptr;
+    int buf_size{};
+    AVPacket pkt{};
+    int ret{};
+
+    buf_size = av_image_get_buffer_size(
+        AV_PIX_FMT_RGB24, codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
+    buf = static_cast<std::uint8_t *>(av_malloc(buf_size * sizeof(std::uint8_t)));
+
+    av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, buf, AV_PIX_FMT_RGB24,
+        codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
+
+    const auto sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, codec_ctx_->pix_fmt,
+        codec_ctx_->width, codec_ctx_->height, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr,
+        nullptr);
+
+    while (av_read_frame(format_ctx_, &pkt) >= 0) {
+        if (pkt.stream_index == best_vid_stream_id_) {
+            ret = avcodec_send_packet(codec_ctx_, &pkt);
+            if (ret < 0) {
+                std::cerr << "Error sending packet for decoding.\n";
+                return DecoderError{DecoderErrorDesc::FAILURE, ret};
+            }
+
+            while (ret >= 0) {
+                ret = avcodec_receive_frame(codec_ctx_, frame.get());
+
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                    break;
+                } else if (ret < 0) {
+                    std::cerr << "Error while decoding.\n";
+                    return DecoderError{DecoderErrorDesc::FAILURE, ret};
+                }
+
+                sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
+                    frame->linesize, 0, codec_ctx_->height, frame_cnvt->data, frame_cnvt->linesize);
+            }
+        }
+    }
+
+    av_free(buf);
+
+    return DecoderError{DecoderErrorDesc::SUCCESS};
 }
 
 SwDecoder::~SwDecoder() { avcodec_free_context(&codec_ctx_); }

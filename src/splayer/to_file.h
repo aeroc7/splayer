@@ -20,42 +20,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <memory>
+#ifndef TO_FILE_H_
+#define TO_FILE_H_
+
+#include <cstdio>
+#include <iostream>
 #include <string>
 
-extern "C" {
-#include <libavutil/frame.h>
+namespace utils {
+template <int max>
+void save_frame_to_f(AVFrame *avFrame, int width, int height, int frameIndex) {
+    std::string filename;
+    int y{};
+
+    if (frameIndex == max) {
+        std::cout << "Max reached\n";
+        std::abort();
+    }
+
+    filename = "frame" + std::to_string(frameIndex) + ".ppm";
+
+    std::FILE *pFile = std::fopen(filename.c_str(), "wb");
+    if (pFile == nullptr) {
+        return;
+    }
+
+    // Write header
+    std::fprintf(pFile, "P6\n%d %d\n255\n", width, height);
+
+    // Write pixel data
+    for (y = 0; y < height; y++) {
+        std::fwrite(avFrame->data[0] + (y * avFrame->linesize[0]), 1, width * 3, pFile);
+    }
+
+    // Close file
+    std::fclose(pFile);
 }
+}  // namespace utils
 
-namespace splayer {
-struct AvFramePtrDeleter {
-    void operator()(AVFrame *f) noexcept { av_frame_free(&f); }
-};
-
-using AVFramePtr = std::unique_ptr<AVFrame, AvFramePtrDeleter>;
-
-enum class DecoderErrorDesc { FAILURE = -1, SUCCESS = 0 };
-class DecoderError {
-public:
-    constexpr DecoderError() = default;
-    constexpr DecoderError(DecoderErrorDesc d) : desc(d) {}
-    constexpr explicit DecoderError(DecoderErrorDesc d, int code) : desc(d), err_code(code) {}
-    constexpr explicit operator bool() const noexcept { return status(); }
-    constexpr bool status() const noexcept { return (desc != DecoderErrorDesc::SUCCESS); }
-    constexpr int error_code() const noexcept { return err_code; }
-
-private:
-    DecoderErrorDesc desc{DecoderErrorDesc::SUCCESS};
-    int err_code{};
-};
-
-class Decoder {
-public:
-    virtual DecoderError open_input(const std::string &url) noexcept = 0;
-    virtual ~Decoder() = default;
-
-protected:
-private:
-    friend DecoderError;
-};
-}  // namespace splayer
+#endif /* TO_FILE_H_ */

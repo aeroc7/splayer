@@ -10,6 +10,9 @@ find_library(AVUTIL_LIBRARY avutil)
 find_path(AVDEVICE_INCLUDE_DIR libavdevice/avdevice.h)
 find_library(AVDEVICE_LIBRARY avdevice)
 
+find_path(SWSSCALE_INCLUDE_DIR libswscale/swscale.h)
+find_library(SWSCALE_LIBRARY swscale)
+
 add_library(ffmpeg INTERFACE)
 
 target_link_libraries(ffmpeg INTERFACE
@@ -17,6 +20,7 @@ target_link_libraries(ffmpeg INTERFACE
     ${AVFORMAT_LIBRARY}
     ${AVUTIL_LIBRARY}
     ${AVDEVICE_LIBRARY}
+    ${SWSCALE_LIBRARY}
 )
 
 if(UNIX AND NOT APPLE)

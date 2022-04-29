@@ -29,5 +29,5 @@ std::unique_ptr<splayer::SplayerApp> splayer_app;
 
 int main() {
     splayer_app = std::make_unique<splayer::SplayerApp>();
-    splayer_app->gui_loop();
+    // splayer_app->gui_loop();
 }

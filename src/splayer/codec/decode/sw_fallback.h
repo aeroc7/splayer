@@ -44,14 +44,15 @@ private:
     DecoderError open_codec() noexcept;
 
     bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
+    DecoderError decode_frames() noexcept;
 
     AVFormatContext *format_ctx_{nullptr};
     AVCodec *codec_{nullptr};
     AVCodecContext *codec_ctx_orig_{nullptr}, *codec_ctx_{nullptr};
 
-    AVFramePtr frame;
+    AVFramePtr frame, frame_cnvt;
 
-    [[maybe_unused]] CallbackType onframe_cb{nullptr};
+    CallbackType onframe_cb{nullptr};
 
     int best_vid_stream_id_{-1};
 };

@@ -26,13 +26,19 @@
 #include <splayer/codec/decode/sw_fallback.h>
 #include <splayer/window/window.h>
 
+#include <iostream>
+
 namespace splayer {
 SplayerApp::SplayerApp() {
     os_window = std::make_unique<graphics::Window>();
     os_window->create_window(cfg::PROJECT_NAME, 500, 500);
 
     sw_decoder = std::make_unique<splayer::SwDecoder>([](const AVFrame *) {});
-    sw_decoder->open_input("/home/bennett/SpaceX Launches 4K Demo.mp4");
+    const auto err = sw_decoder->open_input("/home/bennett/SpaceX Launches 4K Demo.mp4");
+
+    if (err) {
+        std::cout << "Error occured: " << err.error_code() << '\n';
+    }
 }
 
 void SplayerApp::gui_loop() {
