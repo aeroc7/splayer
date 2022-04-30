@@ -35,9 +35,7 @@ extern "C" {
 #include <iostream>
 
 namespace splayer {
-SwDecoder::SwDecoder(CallbackType cb) : onframe_cb(cb) {
-    assert(onframe_cb != nullptr);
-
+SwDecoder::SwDecoder() {
     frame.reset(av_frame_alloc());
     frame_cnvt.reset(av_frame_alloc());
 
@@ -183,7 +181,7 @@ void SwDecoder::setup_cnvt_process() noexcept {
         nullptr);
 }
 
-DecoderError SwDecoder::decode_frame() noexcept {
+AVFrame *SwDecoder::decode_frame() noexcept {
     AVPacket pkt{};
     int ret{};
 
@@ -196,7 +194,8 @@ DecoderError SwDecoder::decode_frame() noexcept {
             ret = avcodec_send_packet(codec_ctx_, &pkt);
             if (ret < 0) {
                 std::cerr << "Error sending packet for decoding.\n";
-                return DecoderError{DecoderErrorDesc::FAILURE, ret};
+                // return DecoderError{DecoderErrorDesc::FAILURE, ret};
+                return nullptr;
             }
 
             bool frm_success = (ret >= 0);
@@ -208,7 +207,8 @@ DecoderError SwDecoder::decode_frame() noexcept {
                     break;
                 } else if (ret < 0) {
                     std::cerr << "Error while decoding.\n";
-                    return DecoderError{DecoderErrorDesc::FAILURE, ret};
+                    // return DecoderError{DecoderErrorDesc::FAILURE, ret};
+                    return nullptr;
                 }
 
                 sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
@@ -217,7 +217,7 @@ DecoderError SwDecoder::decode_frame() noexcept {
                 frame_cnvt->width = codec_ctx_->width;
                 frame_cnvt->height = codec_ctx_->height;
 
-                onframe_cb(frame_cnvt.get());
+                return frame_cnvt.get();
             }
 
             if (frm_success) {
@@ -226,7 +226,8 @@ DecoderError SwDecoder::decode_frame() noexcept {
         }
     }
 
-    return DecoderError{DecoderErrorDesc::SUCCESS};
+    // return DecoderError{DecoderErrorDesc::SUCCESS};
+    return nullptr;
 }
 
 SwDecoder::~SwDecoder() {

@@ -25,27 +25,29 @@
 #include <GL/glew.h>
 #include <splayer/cfg.h>
 #include <splayer/codec/decode/sw_fallback.h>
+#include <splayer/display/gl_texture.h>
 #include <splayer/to_file.h>
 #include <splayer/window/window.h>
 
 #include <chrono>
+#include <cstring>
 #include <iostream>
 
 AVFrame *last_frame{nullptr};
 
 namespace splayer {
+constexpr auto WIDTH = 3840;
+constexpr auto HEIGHT = 2160;
+constexpr auto MONITOR_W = 1920;
+constexpr auto MONITOR_H = 1080;
+
 SplayerApp::SplayerApp() {
     os_window = std::make_unique<graphics::Window>();
-    os_window->create_window(cfg::PROJECT_NAME, 500, 500);
-    // static int i = 0;
+    os_window->create_window(cfg::PROJECT_NAME, MONITOR_W, MONITOR_H);
 
-    sw_decoder = std::make_unique<splayer::SwDecoder>([](AVFrame *frm) {
-        // utils::save_frame_to_f<20>(frm, frm->width, frm->height, i);
-        last_frame = frm;
-        // i += 1;
-    });
+    sw_decoder = std::make_unique<splayer::SwDecoder>();
 
-    auto err = sw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
+    auto err = sw_decoder->open_input("/home/bennett/Downloads/Sony Bravia OLED 4K Demo.mp4");
 
     if (err) {
         std::cout << "Error occured: " << err.error_code() << '\n';
@@ -54,19 +56,39 @@ SplayerApp::SplayerApp() {
 }
 
 void SplayerApp::gui_loop() {
-    os_window->window_loop([this] {
-        auto t1 = std::chrono::steady_clock::now();
+    graphics::GlTexture tex{WIDTH, HEIGHT};
 
-        const auto err = sw_decoder->decode_frame();
-        if (err) {
-            std::cout << "Error!\n";
-            std::abort();
+    os_window->window_loop([&] {
+        const auto f = sw_decoder->decode_frame();
+        if (f == nullptr) {
+            return;
         }
 
-        auto t2 = std::chrono::steady_clock::now();
+        glEnable(GL_BLEND);
+        glEnable(GL_TEXTURE_2D);
 
-        std::cout << "Time: "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << '\n';
+        glClearColor(0.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        tex.bind();
+        glTexSubImage2D(
+            GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, f->data[0]);
+
+        glBegin(GL_QUADS);
+        glTexCoord2f(0, 0);
+        glVertex2i(0, 0);
+        glTexCoord2f(0, 1);
+        glVertex2i(0, MONITOR_H);
+        glTexCoord2f(1, 1);
+        glVertex2i(MONITOR_W, MONITOR_H);
+        glTexCoord2f(1, 0);
+        glVertex2i(MONITOR_W, 0);
+        glEnd();
+
+        tex.unbind();
+
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
     });
 }
 

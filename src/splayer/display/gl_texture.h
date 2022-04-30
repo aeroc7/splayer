@@ -20,48 +20,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "decoder.h"
+#ifndef GL_TEXTURE_H_
+#define GL_TEXTURE_H_
 
-struct AVFormatContext;
-struct AVCodecContext;
-struct AVCodec;
-struct AVPacket;
-struct SwsContext;
+#include <GL/glew.h>
 
-namespace splayer {
-class SwDecoder final : public Decoder {
+namespace graphics {
+class GlTexture final {
 public:
-    SwDecoder();
-    virtual ~SwDecoder() override;
+    using size_type = int;
+    using tex_type = GLuint;
 
-    DecoderError open_input(const std::string &url) noexcept override;
+    GlTexture(size_type width, size_type height);
+    GlTexture(const GlTexture &) = delete;
+    GlTexture &operator=(const GlTexture &) = delete;
+    GlTexture(GlTexture &&) noexcept;
+    GlTexture &operator=(GlTexture &&) noexcept;
+    ~GlTexture();
 
-    AVFrame *decode_frame() noexcept;
+    void bind() const noexcept;
+    void unbind() const noexcept;
+    void regen_texture(size_type width, size_type height) noexcept;
 
 private:
-    DecoderError find_best_stream() noexcept;
-    DecoderError find_decoder() noexcept;
-    int get_decoder_id() noexcept;
-    DecoderError setup_decoder() noexcept;
-    DecoderError open_codec() noexcept;
+    static constexpr auto NULL_TEXTURE = 0;
+    void try_delete_texture() noexcept;
+    void create_new_texture(size_type width, size_type height) noexcept;
 
-    bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
-
-    void setup_cnvt_process() noexcept;
-
-    AVFormatContext *format_ctx_{nullptr};
-    const AVCodec *codec_{nullptr};
-    AVCodecContext *codec_ctx_orig_{nullptr}, *codec_ctx_{nullptr};
-
-    AVFramePtr frame, frame_cnvt;
-
-    SwsContext *sws_ctx{nullptr};
-
-    int best_vid_stream_id_{-1};
-    int buf_size{};
-
-    std::uint8_t *cnvt_buf{nullptr};
-
-    static constexpr auto FRAME_BUF_ALIGNMENT = 32;
+    tex_type tex_id{NULL_TEXTURE};
 };
-}  // namespace splayer
+}  // namespace graphics
+
+#endif /* GL_TEXTURE_H_ */
