@@ -25,6 +25,8 @@
 
 #include <GL/glew.h>
 
+#include <tuple>
+
 namespace graphics {
 class GlTexture final {
 public:
@@ -41,6 +43,7 @@ public:
     void bind() const noexcept;
     void unbind() const noexcept;
     void regen_texture(size_type width, size_type height) noexcept;
+    std::tuple<size_type, size_type> dimensions() const { return {tex_width, tex_height}; }
 
 private:
     static constexpr auto NULL_TEXTURE = 0;
@@ -48,6 +51,7 @@ private:
     void create_new_texture(size_type width, size_type height) noexcept;
 
     tex_type tex_id{NULL_TEXTURE};
+    size_type tex_width, tex_height;
 };
 }  // namespace graphics
 

@@ -28,11 +28,16 @@ namespace graphics {
 
 GlTexture::GlTexture(size_type width, size_type height) { regen_texture(width, height); }
 
-GlTexture::GlTexture(GlTexture &&o) noexcept : tex_id{std::exchange(o.tex_id, NULL_TEXTURE)} {}
+GlTexture::GlTexture(GlTexture &&o) noexcept
+    : tex_id{std::exchange(o.tex_id, NULL_TEXTURE)},
+      tex_width{o.tex_width},
+      tex_height{o.tex_height} {}
 
 GlTexture &GlTexture::operator=(GlTexture &&o) noexcept {
     if (this != &o) {
         tex_id = std::exchange(o.tex_id, NULL_TEXTURE);
+        tex_width = o.tex_width;
+        tex_height = o.tex_height;
     }
 
     return *this;
@@ -51,6 +56,7 @@ void GlTexture::try_delete_texture() noexcept {
     if (tex_id > 0) {
         glDeleteTextures(1, &tex_id);
         tex_id = 0;
+        tex_width = tex_height = 0;
     }
 }
 
@@ -65,6 +71,9 @@ void GlTexture::create_new_texture(int width, int height) noexcept {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    tex_width = width;
+    tex_height = height;
 }
 
 GlTexture::~GlTexture() { try_delete_texture(); }
