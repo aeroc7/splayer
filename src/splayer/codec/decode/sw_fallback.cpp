@@ -89,8 +89,7 @@ DecoderError SwDecoder::find_best_stream() noexcept {
 DecoderError SwDecoder::find_decoder() noexcept {
     const auto decoder_id = get_decoder_id();
 
-    codec_ =
-        /*const_cast<AVCodec *>(*/ avcodec_find_decoder(static_cast<AVCodecID>(decoder_id)) /*)*/;
+    codec_ = avcodec_find_decoder(static_cast<AVCodecID>(decoder_id));
     if (!codec_) {
         std::cerr << "Unsupported codec\n";
         return DecoderError{DecoderErrorDesc::FAILURE};

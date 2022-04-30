@@ -51,7 +51,7 @@ private:
     void setup_cnvt_process() noexcept;
 
     AVFormatContext *format_ctx_{nullptr};
-    AVCodec *codec_{nullptr};
+    const AVCodec *codec_{nullptr};
     AVCodecContext *codec_ctx_orig_{nullptr}, *codec_ctx_{nullptr};
 
     AVFramePtr frame, frame_cnvt;

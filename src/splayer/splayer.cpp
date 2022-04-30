@@ -49,6 +49,7 @@ SplayerApp::SplayerApp() {
 
     if (err) {
         std::cout << "Error occured: " << err.error_code() << '\n';
+        std::exit(err.error_code());
     }
 }
 
