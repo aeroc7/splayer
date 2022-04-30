@@ -29,9 +29,8 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include <splayer/to_file.h>
+#include <splayer/utils.h>
 
-#include <cassert>
 #include <iostream>
 
 namespace splayer {
@@ -97,7 +96,7 @@ DecoderError SwDecoder::find_decoder() noexcept {
 }
 
 int SwDecoder::get_decoder_id() noexcept {
-    assert(best_vid_stream_id_ >= 0);
+    ASSERT(best_vid_stream_id_ >= 0);
 
     const AVCodecID id = format_ctx_->streams[best_vid_stream_id_]->codecpar->codec_id;
 
@@ -105,7 +104,7 @@ int SwDecoder::get_decoder_id() noexcept {
 }
 
 DecoderError SwDecoder::setup_decoder() noexcept {
-    assert(codec_);
+    ASSERT(codec_);
     int ret{};
 
     codec_ctx_orig_ = avcodec_alloc_context3(codec_);

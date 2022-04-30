@@ -26,14 +26,10 @@
 #include <splayer/cfg.h>
 #include <splayer/codec/decode/sw_fallback.h>
 #include <splayer/display/gl_texture.h>
-#include <splayer/to_file.h>
 #include <splayer/window/window.h>
 
-#include <chrono>
 #include <cstring>
 #include <iostream>
-
-AVFrame *last_frame{nullptr};
 
 namespace splayer {
 constexpr auto WIDTH = 3840;
