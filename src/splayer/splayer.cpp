@@ -22,19 +22,30 @@
 
 #include "splayer.h"
 
+#include <GL/glew.h>
 #include <splayer/cfg.h>
 #include <splayer/codec/decode/sw_fallback.h>
+#include <splayer/to_file.h>
 #include <splayer/window/window.h>
 
+#include <chrono>
 #include <iostream>
+
+AVFrame *last_frame{nullptr};
 
 namespace splayer {
 SplayerApp::SplayerApp() {
     os_window = std::make_unique<graphics::Window>();
     os_window->create_window(cfg::PROJECT_NAME, 500, 500);
+    // static int i = 0;
 
-    sw_decoder = std::make_unique<splayer::SwDecoder>([](const AVFrame *) {});
-    const auto err = sw_decoder->open_input("/home/bennett/SpaceX Launches 4K Demo.mp4");
+    sw_decoder = std::make_unique<splayer::SwDecoder>([](AVFrame *frm) {
+        // utils::save_frame_to_f<20>(frm, frm->width, frm->height, i);
+        last_frame = frm;
+        // i += 1;
+    });
+
+    auto err = sw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
 
     if (err) {
         std::cout << "Error occured: " << err.error_code() << '\n';
@@ -42,8 +53,19 @@ SplayerApp::SplayerApp() {
 }
 
 void SplayerApp::gui_loop() {
-    os_window->window_loop([] {
+    os_window->window_loop([this] {
+        auto t1 = std::chrono::steady_clock::now();
 
+        const auto err = sw_decoder->decode_frame();
+        if (err) {
+            std::cout << "Error!\n";
+            std::abort();
+        }
+
+        auto t2 = std::chrono::steady_clock::now();
+
+        std::cout << "Time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << '\n';
     });
 }
 

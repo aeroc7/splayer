@@ -26,15 +26,18 @@ struct AVFormatContext;
 struct AVCodecContext;
 struct AVCodec;
 struct AVPacket;
+struct SwsContext;
 
 namespace splayer {
 class SwDecoder final : public Decoder {
 public:
-    using CallbackType = void (*)(const AVFrame *f);
+    using CallbackType = void (*)(AVFrame *f);
     SwDecoder(CallbackType cb);
     virtual ~SwDecoder() override;
 
     DecoderError open_input(const std::string &url) noexcept override;
+
+    DecoderError decode_frame() noexcept;
 
 private:
     DecoderError find_best_stream() noexcept;
@@ -44,7 +47,8 @@ private:
     DecoderError open_codec() noexcept;
 
     bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
-    DecoderError decode_frames() noexcept;
+
+    void setup_cnvt_process() noexcept;
 
     AVFormatContext *format_ctx_{nullptr};
     AVCodec *codec_{nullptr};
@@ -53,7 +57,13 @@ private:
     AVFramePtr frame, frame_cnvt;
 
     CallbackType onframe_cb{nullptr};
+    SwsContext *sws_ctx{nullptr};
 
     int best_vid_stream_id_{-1};
+    int buf_size{};
+
+    std::uint8_t *cnvt_buf{nullptr};
+
+    static constexpr auto FRAME_BUF_ALIGNMENT = 32;
 };
 }  // namespace splayer

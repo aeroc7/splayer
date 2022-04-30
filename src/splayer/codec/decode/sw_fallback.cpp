@@ -70,10 +70,6 @@ DecoderError SwDecoder::open_input(const std::string &url) noexcept {
         return err;
     }
 
-    if (const auto err = decode_frames(); err) {
-        return err;
-    }
-
     return DecoderError{DecoderErrorDesc::SUCCESS};
 }
 
@@ -147,6 +143,17 @@ DecoderError SwDecoder::setup_decoder() noexcept {
 DecoderError SwDecoder::open_codec() noexcept {
     int ret{};
 
+    // set codec to automatically determine how many threads suits best for the decoding job
+    codec_ctx_->thread_count = 0;
+
+    if (codec_->capabilities | AV_CODEC_CAP_FRAME_THREADS) {
+        codec_ctx_->thread_type = FF_THREAD_FRAME;
+    } else if (codec_->capabilities | AV_CODEC_CAP_SLICE_THREADS) {
+        codec_ctx_->thread_type = FF_THREAD_SLICE;
+    } else {
+        codec_ctx_->thread_count = 1;  // don't use multithreading
+    }
+
     ret = avcodec_open2(codec_ctx_, codec_, nullptr);
     if (ret < 0) {
         std::cerr << "Failed to open codec.\n";
@@ -160,23 +167,30 @@ bool SwDecoder::packet_is_from_video_stream(const AVPacket *p) const noexcept {
     return (p->stream_index == best_vid_stream_id_);
 }
 
-DecoderError SwDecoder::decode_frames() noexcept {
-    constexpr auto FRAME_BUF_ALIGNMENT = 32;
-    std::uint8_t *buf = nullptr;
-    int buf_size{};
-    AVPacket pkt{};
-    int ret{};
+void SwDecoder::setup_cnvt_process() noexcept {
+    if (buf_size) {
+        return;
+    }
 
     buf_size = av_image_get_buffer_size(
         AV_PIX_FMT_RGB24, codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
-    buf = static_cast<std::uint8_t *>(av_malloc(buf_size * sizeof(std::uint8_t)));
+    cnvt_buf = static_cast<std::uint8_t *>(av_malloc(buf_size * sizeof(std::uint8_t)));
 
-    av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, buf, AV_PIX_FMT_RGB24,
+    av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, cnvt_buf, AV_PIX_FMT_RGB24,
         codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
 
-    const auto sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, codec_ctx_->pix_fmt,
+    sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, codec_ctx_->pix_fmt,
         codec_ctx_->width, codec_ctx_->height, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr,
         nullptr);
+}
+
+DecoderError SwDecoder::decode_frame() noexcept {
+    AVPacket pkt{};
+    int ret{};
+
+    if (buf_size == 0) {
+        setup_cnvt_process();
+    }
 
     while (av_read_frame(format_ctx_, &pkt) >= 0) {
         if (pkt.stream_index == best_vid_stream_id_) {
@@ -186,7 +200,9 @@ DecoderError SwDecoder::decode_frames() noexcept {
                 return DecoderError{DecoderErrorDesc::FAILURE, ret};
             }
 
-            while (ret >= 0) {
+            bool frm_success = (ret >= 0);
+
+            while (frm_success) {
                 ret = avcodec_receive_frame(codec_ctx_, frame.get());
 
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -198,14 +214,26 @@ DecoderError SwDecoder::decode_frames() noexcept {
 
                 sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
                     frame->linesize, 0, codec_ctx_->height, frame_cnvt->data, frame_cnvt->linesize);
+
+                frame_cnvt->width = codec_ctx_->width;
+                frame_cnvt->height = codec_ctx_->height;
+
+                onframe_cb(frame_cnvt.get());
+            }
+
+            if (frm_success) {
+                break;
             }
         }
     }
 
-    av_free(buf);
-
     return DecoderError{DecoderErrorDesc::SUCCESS};
 }
 
-SwDecoder::~SwDecoder() { avcodec_free_context(&codec_ctx_); }
+SwDecoder::~SwDecoder() {
+    av_free(cnvt_buf);
+    avcodec_free_context(&codec_ctx_);
+
+    cnvt_buf = nullptr;
+}
 }  // namespace splayer

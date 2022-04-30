@@ -43,6 +43,12 @@ public:
     constexpr explicit operator bool() const noexcept { return status(); }
     constexpr bool status() const noexcept { return (desc != DecoderErrorDesc::SUCCESS); }
     constexpr int error_code() const noexcept { return err_code; }
+    std::string error_string() const {
+        std::array<char, 128> err_buf;
+
+        av_strerror(err_code, err_buf.data(), err_buf.size());
+        return std::string{err_buf.data()};
+    }
 
 private:
     DecoderErrorDesc desc{DecoderErrorDesc::SUCCESS};
