@@ -21,10 +21,5 @@
 # SOFTWARE.
 
 target_sources(project_source INTERFACE
-    splayer.cpp
+    pf_wrapper.cpp
 )
-
-add_subdirectory(window)
-add_subdirectory(codec)
-add_subdirectory(display)
-add_subdirectory(util)

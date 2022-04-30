@@ -29,7 +29,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include <splayer/utils.h>
+#include <splayer/util/utils.h>
 
 #include <iostream>
 
