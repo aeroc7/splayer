@@ -31,7 +31,7 @@ extern "C" {
 
 #include <splayer/util/utils.h>
 
-#include <iostream>
+using namespace utils;
 
 namespace splayer {
 SwDecoder::SwDecoder() {
@@ -39,60 +39,55 @@ SwDecoder::SwDecoder() {
     frame_cnvt.reset(av_frame_alloc());
 
     if (!frame || !frame_cnvt) {
-        std::cerr << "Failed to allocate frame.\n";
-        return;
+        throw std::runtime_error("Failed to allocate av_frame.");
     }
 }
 
 // TODO: In the event that failure happens further down, and we return, we fail to free/close a
 // bunch of contexts that were made
-DecoderError SwDecoder::open_input(const std::string &url) noexcept {
+void SwDecoder::open_input(const std::string &url) {
     int ret{};
 
     // Note: avformat_open_input will allocate our context for us.
     ret = avformat_open_input(&format_ctx_, url.c_str(), nullptr, nullptr);
     if (ret < 0) {
-        std::cerr << "Failed to open input stream and/or read the header of: " << url << '\n';
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to open input stream and/or read the header of: " << url;
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
 
     ret = avformat_find_stream_info(format_ctx_, nullptr);
     if (ret < 0) {
-        std::cerr << "Failed to read stream information.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to read stream information.";
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
 
-    // Initialization
-    if (const auto err = find_best_stream(); err) {
-        return err;
-    }
-
-    return DecoderError{DecoderErrorDesc::SUCCESS};
+    find_best_stream();
 }
 
-DecoderError SwDecoder::find_best_stream() noexcept {
+void SwDecoder::find_best_stream() {
     int ret{};
 
     ret = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     if (ret < 0) {
-        std::cerr << "Failed to find valid stream/decoder\n";
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to find valid stream/decoder.";
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
+
     best_vid_stream_id_ = ret;
 
-    return find_decoder();
+    find_decoder();
 }
 
-DecoderError SwDecoder::find_decoder() noexcept {
+void SwDecoder::find_decoder() {
     const auto decoder_id = get_decoder_id();
 
     codec_ = avcodec_find_decoder(static_cast<AVCodecID>(decoder_id));
     if (!codec_) {
-        std::cerr << "Unsupported codec\n";
-        return DecoderError{DecoderErrorDesc::FAILURE};
+        Log(Log::ERROR) << "Unsupported codec";
+        throw DecoderError(DecoderErrorDesc::FAILURE);
     }
 
-    return setup_decoder();
+    setup_decoder();
 }
 
 int SwDecoder::get_decoder_id() noexcept {
@@ -103,40 +98,40 @@ int SwDecoder::get_decoder_id() noexcept {
     return id;
 }
 
-DecoderError SwDecoder::setup_decoder() noexcept {
+void SwDecoder::setup_decoder() {
     ASSERT(codec_);
     int ret{};
 
     codec_ctx_orig_ = avcodec_alloc_context3(codec_);
     if (!codec_ctx_orig_) {
-        std::cerr << "Failed to create codec context.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE};
+        Log(Log::ERROR) << "Failed to create codec context.";
+        throw DecoderError(DecoderErrorDesc::FAILURE);
     }
 
     ret = avcodec_parameters_to_context(
         codec_ctx_orig_, format_ctx_->streams[best_vid_stream_id_]->codecpar);
     if (ret < 0) {
-        std::cerr << "Failed to fill context with paramters.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to fill context with paramters.";
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
 
     codec_ctx_ = avcodec_alloc_context3(codec_);
     if (!codec_ctx_) {
-        std::cerr << "Failed to create codec context copy.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE};
+        Log(Log::ERROR) << "Failed to create codec context copy.";
+        throw DecoderError(DecoderErrorDesc::FAILURE);
     }
 
     ret = avcodec_parameters_to_context(
         codec_ctx_, format_ctx_->streams[best_vid_stream_id_]->codecpar);
     if (ret < 0) {
-        std::cerr << "Failed to fill context copy with paramters.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to fill context copy with paramters.";
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
 
-    return open_codec();
+    open_codec();
 }
 
-DecoderError SwDecoder::open_codec() noexcept {
+void SwDecoder::open_codec() {
     int ret{};
 
     // set codec to automatically determine how many threads suits best for the decoding job
@@ -152,11 +147,9 @@ DecoderError SwDecoder::open_codec() noexcept {
 
     ret = avcodec_open2(codec_ctx_, codec_, nullptr);
     if (ret < 0) {
-        std::cerr << "Failed to open codec.\n";
-        return DecoderError{DecoderErrorDesc::FAILURE, ret};
+        Log(Log::ERROR) << "Failed to open codec.";
+        throw DecoderError(DecoderErrorDesc::FAILURE, ret);
     }
-
-    return DecoderError{DecoderErrorDesc::SUCCESS};
 }
 
 bool SwDecoder::packet_is_from_video_stream(const AVPacket *p) const noexcept {
@@ -180,7 +173,7 @@ void SwDecoder::setup_cnvt_process() noexcept {
         nullptr);
 }
 
-AVFrame *SwDecoder::decode_frame() noexcept {
+AVFrame *SwDecoder::decode_frame() {
     AVPacket pkt{};
     int ret{};
 
@@ -192,9 +185,8 @@ AVFrame *SwDecoder::decode_frame() noexcept {
         if (pkt.stream_index == best_vid_stream_id_) {
             ret = avcodec_send_packet(codec_ctx_, &pkt);
             if (ret < 0) {
-                std::cerr << "Error sending packet for decoding.\n";
-                // return DecoderError{DecoderErrorDesc::FAILURE, ret};
-                return nullptr;
+                Log(Log::ERROR) << "Error sending packet for decoding.";
+                throw DecoderError{DecoderErrorDesc::FAILURE, ret};
             }
 
             bool frm_success = (ret >= 0);
@@ -205,9 +197,8 @@ AVFrame *SwDecoder::decode_frame() noexcept {
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                     break;
                 } else if (ret < 0) {
-                    std::cerr << "Error while decoding.\n";
-                    // return DecoderError{DecoderErrorDesc::FAILURE, ret};
-                    return nullptr;
+                    Log(Log::ERROR) << "Error while decoding.";
+                    throw DecoderError{DecoderErrorDesc::FAILURE, ret};
                 }
 
                 sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
@@ -225,7 +216,6 @@ AVFrame *SwDecoder::decode_frame() noexcept {
         }
     }
 
-    // return DecoderError{DecoderErrorDesc::SUCCESS};
     return nullptr;
 }
 

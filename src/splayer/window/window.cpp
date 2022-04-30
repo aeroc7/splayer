@@ -23,6 +23,7 @@
 #include "window.h"
 
 #include <GLFW/glfw3.h>
+#include <splayer/util/log.h>
 
 #include <cmath>
 #include <iostream>
@@ -55,7 +56,7 @@ void Window::set_with_click_ratio(Window *win, double &xpos, double &ypos) {
 }
 
 void Window::glfw_error_callback([[maybe_unused]] int error, const char *description) {
-    std::cerr << "glfw error: " << description << '\n';
+    utils::Log(utils::Log::ERROR) << "glfw error: " << description;
 }
 
 void Window::glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) noexcept {

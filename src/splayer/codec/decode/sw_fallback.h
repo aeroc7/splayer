@@ -34,16 +34,16 @@ public:
     SwDecoder();
     virtual ~SwDecoder() override;
 
-    DecoderError open_input(const std::string &url) noexcept override;
+    void open_input(const std::string &url) override;
 
-    AVFrame *decode_frame() noexcept;
+    AVFrame *decode_frame();
 
 private:
-    DecoderError find_best_stream() noexcept;
-    DecoderError find_decoder() noexcept;
+    void find_best_stream();
+    void find_decoder();
     int get_decoder_id() noexcept;
-    DecoderError setup_decoder() noexcept;
-    DecoderError open_codec() noexcept;
+    void setup_decoder();
+    void open_codec();
 
     bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
 

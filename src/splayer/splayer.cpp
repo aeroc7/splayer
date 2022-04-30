@@ -29,7 +29,6 @@
 #include <splayer/window/window.h>
 
 #include <cstring>
-#include <iostream>
 
 namespace splayer {
 constexpr auto WIDTH = 3840;
@@ -43,12 +42,7 @@ SplayerApp::SplayerApp() {
 
     sw_decoder = std::make_unique<splayer::SwDecoder>();
 
-    auto err = sw_decoder->open_input("/home/bennett/Downloads/Sony Bravia OLED 4K Demo.mp4");
-
-    if (err) {
-        std::cout << "Error occured: " << err.error_code() << '\n';
-        std::exit(err.error_code());
-    }
+    sw_decoder->open_input("/home/bennett/Downloads/Sony Bravia OLED 4K Demo.mp4");
 }
 
 void SplayerApp::gui_loop() {

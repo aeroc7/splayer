@@ -58,7 +58,7 @@ private:
 
 class Decoder {
 public:
-    virtual DecoderError open_input(const std::string &url) noexcept = 0;
+    virtual void open_input(const std::string &url) = 0;
     virtual ~Decoder() = default;
 
 protected:
