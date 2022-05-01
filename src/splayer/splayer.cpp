@@ -33,16 +33,19 @@
 namespace splayer {
 constexpr auto WIDTH = 3840;
 constexpr auto HEIGHT = 2160;
-constexpr auto MONITOR_W = 1920;
-constexpr auto MONITOR_H = 1080;
 
 SplayerApp::SplayerApp() {
     os_window = std::make_unique<graphics::Window>();
-    os_window->create_window(cfg::PROJECT_NAME, MONITOR_W, MONITOR_H);
+
+    const auto pm_dims = os_window->get_primary_monitor_dims();
+    window_w = std::get<0>(pm_dims) * cfg::INITIAL_WINDOW_SCALE_MULTI;
+    window_h = std::get<1>(pm_dims) * cfg::INITIAL_WINDOW_SCALE_MULTI;
+
+    os_window->create_window(cfg::PROJECT_NAME, window_w, window_h);
 
     sw_decoder = std::make_unique<splayer::SwDecoder>();
 
-    sw_decoder->open_input("/home/bennett/Downloads/Sony Bravia OLED 4K Demo.mp4");
+    sw_decoder->open_input("/home/bennett/Downloads/LG Snowboarding 4K Demo.mp4");
 }
 
 void SplayerApp::gui_loop() {
@@ -53,6 +56,12 @@ void SplayerApp::gui_loop() {
         if (f == nullptr) {
             return;
         }
+
+        os_window->force_consistent_aspect_r(f->width, f->height);
+
+        const auto window_dims = os_window->get_window_dims();
+        window_w = std::get<0>(window_dims);
+        window_h = std::get<1>(window_dims);
 
         glEnable(GL_BLEND);
         glEnable(GL_TEXTURE_2D);
@@ -68,11 +77,11 @@ void SplayerApp::gui_loop() {
         glTexCoord2f(0, 0);
         glVertex2i(0, 0);
         glTexCoord2f(0, 1);
-        glVertex2i(0, MONITOR_H);
+        glVertex2i(0, window_h);
         glTexCoord2f(1, 1);
-        glVertex2i(MONITOR_W, MONITOR_H);
+        glVertex2i(window_w, window_h);
         glTexCoord2f(1, 0);
-        glVertex2i(MONITOR_W, 0);
+        glVertex2i(window_w, 0);
         glEnd();
 
         tex.unbind();

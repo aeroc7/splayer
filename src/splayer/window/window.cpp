@@ -212,7 +212,6 @@ void Window::create_window(const std::string &title, int w, int h) {
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(w, h, title.c_str(), nullptr, nullptr);
     if (window == nullptr) {
@@ -228,6 +227,20 @@ void Window::create_window(const std::string &title, int w, int h) {
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+}
+
+void Window::force_consistent_aspect_r(int w, int h) { glfwSetWindowAspectRatio(window, w, h); }
+
+std::tuple<int, int> Window::get_primary_monitor_dims() {
+    auto prim_monitor = glfwGetPrimaryMonitor();
+
+    if (prim_monitor == nullptr) {
+        throw std::runtime_error("Failed to get primary monitor from glfw");
+    }
+
+    auto prim_monitor_vm = glfwGetVideoMode(prim_monitor);
+
+    return {prim_monitor_vm->width, prim_monitor_vm->height};
 }
 
 Window::~Window() {

@@ -22,4 +22,5 @@
 
 namespace cfg {
 constexpr auto PROJECT_NAME = DEF_PROJECT_NAME;
-}
+constexpr auto INITIAL_WINDOW_SCALE_MULTI = 0.5;
+}  // namespace cfg

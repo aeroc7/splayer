@@ -40,5 +40,6 @@ public:
 private:
     std::unique_ptr<graphics::Window> os_window;
     std::unique_ptr<splayer::SwDecoder> sw_decoder;
+    int window_w{}, window_h{};
 };
 }  // namespace splayer

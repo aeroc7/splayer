@@ -72,10 +72,10 @@ public:
     void create_window(const std::string &title, int w, int h);
     void window_loop(std::function<void()> func);
     std::tuple<int, int> get_window_dims() const { return {window_width, window_height}; }
-
     std::tuple<int, int> query_true_window_dims();
-
     void set_input_cb(InputCbSignature cb) { input_cb = cb; }
+    std::tuple<int, int> get_primary_monitor_dims();
+    void force_consistent_aspect_r(int w, int h);
 
     ~Window();
 
