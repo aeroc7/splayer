@@ -24,7 +24,7 @@
 
 #include <GL/glew.h>
 #include <splayer/cfg.h>
-#include <splayer/codec/decode/sw_fallback.h>
+#include <splayer/codec/decode/hw_decode.h>
 #include <splayer/display/gl_texture.h>
 #include <splayer/window/window.h>
 
@@ -45,21 +45,21 @@ SplayerApp::SplayerApp() {
 
     os_window->create_window(cfg::PROJECT_NAME, window_w, window_h);
 
-    sw_decoder = std::make_unique<splayer::SwDecoder>();
+    hw_decoder = std::make_unique<splayer::HwDecoder>();
 
-    sw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
+    hw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
 }
 
 void SplayerApp::gui_loop() {
     graphics::GlTexture tex{WIDTH, HEIGHT};
 
     os_window->window_loop([&] {
-        const auto f = sw_decoder->decode_frame();
+        const auto f = hw_decoder->decode_frame();
         if (f == nullptr) {
             return;
         }
 
-        const auto sleep_time = 1000.0 / sw_decoder->clip_fps();
+        const auto sleep_time = 1000.0 / hw_decoder->clip_fps();
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(sleep_time)));
 
         os_window->force_consistent_aspect_r(f->width, f->height);
