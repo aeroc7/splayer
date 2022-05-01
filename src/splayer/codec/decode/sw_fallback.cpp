@@ -219,6 +219,10 @@ AVFrame *SwDecoder::decode_frame() {
     return nullptr;
 }
 
+double SwDecoder::clip_fps() const noexcept {
+    return av_q2d(format_ctx_->streams[best_vid_stream_id_]->r_frame_rate);
+}
+
 SwDecoder::~SwDecoder() {
     av_free(cnvt_buf);
     avcodec_free_context(&codec_ctx_);

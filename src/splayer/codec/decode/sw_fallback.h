@@ -37,6 +37,7 @@ public:
     void open_input(const std::string &url) override;
 
     AVFrame *decode_frame();
+    double clip_fps() const noexcept;
 
 private:
     void find_best_stream();

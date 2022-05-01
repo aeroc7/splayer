@@ -28,7 +28,9 @@
 #include <splayer/display/gl_texture.h>
 #include <splayer/window/window.h>
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 
 namespace splayer {
 constexpr auto WIDTH = 3840;
@@ -45,7 +47,7 @@ SplayerApp::SplayerApp() {
 
     sw_decoder = std::make_unique<splayer::SwDecoder>();
 
-    sw_decoder->open_input("/home/bennett/Downloads/LG Snowboarding 4K Demo.mp4");
+    sw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
 }
 
 void SplayerApp::gui_loop() {
@@ -56,6 +58,9 @@ void SplayerApp::gui_loop() {
         if (f == nullptr) {
             return;
         }
+
+        const auto sleep_time = 1000.0 / sw_decoder->clip_fps();
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(sleep_time)));
 
         os_window->force_consistent_aspect_r(f->width, f->height);
 
