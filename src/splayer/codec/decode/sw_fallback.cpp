@@ -192,6 +192,7 @@ AVFrame *SwDecoder::decode_frame() {
             bool frm_success = (ret >= 0);
 
             while (frm_success) {
+                frame->format = AV_PIX_FMT_YUV420P10LE;
                 ret = avcodec_receive_frame(codec_ctx_, frame.get());
 
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -200,6 +201,9 @@ AVFrame *SwDecoder::decode_frame() {
                     Log(Log::ERROR) << "Error while decoding.";
                     throw DecoderError{DecoderErrorDesc::FAILURE, ret};
                 }
+
+                const char *cpu_pixfmt = av_get_pix_fmt_name((AVPixelFormat)frame->format);
+                std::cout << cpu_pixfmt << '\n';
 
                 sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
                     frame->linesize, 0, codec_ctx_->height, frame_cnvt->data, frame_cnvt->linesize);

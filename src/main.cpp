@@ -20,14 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <splayer/codec/decode/hw_decode.h>
 #include <splayer/splayer.h>
 #include <splayer/window/window.h>
+
+#include <iostream>
 
 namespace {
 std::unique_ptr<splayer::SplayerApp> splayer_app;
 }
 
 int main() {
-    splayer_app = std::make_unique<splayer::SplayerApp>();
-    splayer_app->gui_loop();
+    try {
+        splayer_app = std::make_unique<splayer::SplayerApp>();
+        splayer_app->gui_loop();
+    } catch (const splayer::DecoderError &e) {
+        std::cout << "ERror: " << e.error_string() << '\n';
+    }
 }

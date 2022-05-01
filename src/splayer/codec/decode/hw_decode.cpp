@@ -44,7 +44,8 @@ HwDecoder::HwDecoder() {
             break;
         }
 
-        if (type == AV_HWDEVICE_TYPE_CUDA || type == AV_HWDEVICE_TYPE_OPENCL) {
+        if (type == AV_HWDEVICE_TYPE_CUDA || type == AV_HWDEVICE_TYPE_OPENCL ||
+            type == AV_HWDEVICE_TYPE_VIDEOTOOLBOX) {
             hw_device_type_ = type;
             break;
         }
@@ -83,7 +84,8 @@ void HwDecoder::open_input(const std::string &url) {
 void HwDecoder::find_best_stream() {
     int ret{};
 
-    ret = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, &codec_, 0);
+    ret = av_find_best_stream(
+        format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, const_cast<const AVCodec **>(&codec_), 0);
     if (ret < 0) {
         Log(Log::ERROR) << "Failed to find valid stream/decoder.";
         throw DecoderError(DecoderErrorDesc::FAILURE, ret);
@@ -150,17 +152,42 @@ void HwDecoder::hw_decode_init() {
         throw DecoderError(DecoderErrorDesc::FAILURE, err);
     }
 
-    setup_cnvt_process();
+    // setup_cnvt_process();
 }
 
 bool HwDecoder::packet_is_from_video_stream(const AVPacket *p) const noexcept {
     return (p->stream_index == best_vid_stream_id_);
 }
 
-void HwDecoder::setup_cnvt_process() noexcept {
+AVPixelFormat found;
+bool flag{false};
+
+void HwDecoder::setup_cnvt_process(AVPixelFormat fmt) {
     if (buf_size) {
         return;
     }
+
+    /*AVHWFramesConstraints *hw_frames_const =
+        av_hwdevice_get_hwframe_constraints(hw_device_ctx_, nullptr);
+    if (!hw_frames_const) {
+        Log(Log::ERROR) << "Failed to get hw frame constraints.";
+        throw DecoderError(DecoderErrorDesc::FAILURE);
+    }
+
+    // Check if we can convert the pixel format to a readable format.
+    found = AV_PIX_FMT_NONE;
+    for (AVPixelFormat *p = hw_frames_const->valid_sw_formats; *p != AV_PIX_FMT_NONE; p++) {
+        // Check if we can convert to the desired format.
+        if (sws_isSupportedInput(*p)) {
+            // Ok! This format can be used with swscale!
+            found = *p;
+            std::cout << av_get_pix_fmt_name(found) << '\n';
+            // break;
+        }
+    }
+
+    // Don't forget to free the constraint object.
+    av_hwframe_constraints_free(&hw_frames_const);*/
 
     buf_size = av_image_get_buffer_size(
         AV_PIX_FMT_RGB24, codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
@@ -169,9 +196,8 @@ void HwDecoder::setup_cnvt_process() noexcept {
     av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, cnvt_buf, AV_PIX_FMT_RGB24,
         codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
 
-    sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, codec_ctx_->pix_fmt,
-        codec_ctx_->width, codec_ctx_->height, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr,
-        nullptr);
+    sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, fmt, codec_ctx_->width,
+        codec_ctx_->height, AV_PIX_FMT_RGB24, SWS_BICUBIC, nullptr, nullptr, nullptr);
 }
 
 AVFrame *HwDecoder::decode_frame() {
@@ -198,51 +224,27 @@ AVFrame *HwDecoder::decode_frame() {
                     throw DecoderError{DecoderErrorDesc::FAILURE, ret};
                 }
 
-                if (frame->format == hw_pix_type_) {
-                    const auto err = av_hwframe_transfer_data(sw_frame.get(), frame.get(), 0);
-                    if (err < 0) {
-                        Log(Log::ERROR) << "Error while tranferring data to system memory.";
-                        throw DecoderError{DecoderErrorDesc::FAILURE, err};
-                    }
+                const auto err = av_hwframe_transfer_data(sw_frame.get(), frame.get(), 0);
+                if (err < 0) {
+                    Log(Log::ERROR) << "Error while tranferring data to system memory." << err;
+                    throw DecoderError{DecoderErrorDesc::FAILURE, err};
                 }
 
-                /*AVPixelFormat *frmts;
-                int a = av_hwframe_transfer_get_formats(
-                    hw_device_ctx_, AV_HWFRAME_TRANSFER_DIRECTION_TO, &frmts, 0);
-                std::cout << a << '\n';
+                /*std::cout << av_get_pix_fmt_name(static_cast<AVPixelFormat>(sw_frame->format))
+                          << '\n';*/
 
-                AVPixelFormat *orig = frmts;
-
-                while (true) {
-                    if (*frmts != AV_PIX_FMT_NONE) {
-                        std::cout << av_get_pix_fmt_name(*frmts) << '\n';
-                        frmts++;
-                        continue;
-                    } else {
-                        av_free(orig);
-                        break;
-                    }
+                if (!flag) {
+                    flag = true;
+                    setup_cnvt_process(static_cast<AVPixelFormat>(sw_frame->format));
                 }
 
-                const char *gpu_pixfmt = av_get_pix_fmt_name((AVPixelFormat)frame->format);
-                const char *cpu_pixfmt = av_get_pix_fmt_name((AVPixelFormat)sw_frame->format);
-
-                std::cout << gpu_pixfmt << ' ' << cpu_pixfmt << '\n';
-                // sw_frame->linesize[0] = frame->linesize[0];
-                // } else {
-                //     sw_frame = std::move(frame);
-                // }
-
-                // std::cout << sw_frame->linesize[0] << '\n';
-
-                sws_scale(sws_ctx, sw_frame->data, sw_frame->linesize, 0, codec_ctx_->height,
-                    frame_cnvt->data, frame_cnvt->linesize);
-                // frame_cnvt = std::move(sw_frame);
+                sws_scale(sws_ctx, static_cast<const uint8_t *const *>(sw_frame->data),
+                    sw_frame->linesize, 0, sw_frame->height, frame_cnvt->data,
+                    frame_cnvt->linesize);
 
                 frame_cnvt->width = codec_ctx_->width;
                 frame_cnvt->height = codec_ctx_->height;
-                // sw_frame->width = codec_ctx_->width;
-                // sw_frame->height = codec_ctx_->height;*/
+                frame_cnvt->format = sw_frame->format;
 
                 return frame_cnvt.get();
             }

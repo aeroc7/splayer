@@ -52,7 +52,7 @@ private:
 
     bool packet_is_from_video_stream(const AVPacket *p) const noexcept;
 
-    void setup_cnvt_process() noexcept;
+    void setup_cnvt_process(AVPixelFormat fmt);
 
     AVHWDeviceType hw_device_type_{AV_HWDEVICE_TYPE_NONE};
     AVFormatContext *format_ctx_{nullptr};
