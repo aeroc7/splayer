@@ -84,8 +84,7 @@ void HwDecoder::open_input(const std::string &url) {
 void HwDecoder::find_best_stream() {
     int ret{};
 
-    ret = av_find_best_stream(
-        format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, const_cast<const AVCodec **>(&codec_), 0);
+    ret = av_find_best_stream(format_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, &codec_, 0);
     if (ret < 0) {
         Log(Log::ERROR) << "Failed to find valid stream/decoder.";
         throw DecoderError(DecoderErrorDesc::FAILURE, ret);

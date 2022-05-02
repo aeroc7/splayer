@@ -50,7 +50,7 @@ SplayerApp::SplayerApp() {
 
     hw_decoder = std::make_unique<splayer::HwDecoder>();
 
-    hw_decoder->open_input("/Users/bennett/Downloads/Life Untouched 4K Demo.mp4");
+    hw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
 }
 
 void SplayerApp::gui_loop() {
