@@ -161,15 +161,17 @@ void SwDecoder::setup_cnvt_process() noexcept {
         return;
     }
 
+    constexpr auto PIX_FMT = AV_PIX_FMT_RGB24;
+
     buf_size = av_image_get_buffer_size(
-        AV_PIX_FMT_RGB24, codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
+        PIX_FMT, codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
     cnvt_buf = static_cast<std::uint8_t *>(av_malloc(buf_size * sizeof(std::uint8_t)));
 
-    av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, cnvt_buf, AV_PIX_FMT_RGB24,
+    av_image_fill_arrays(frame_cnvt->data, frame_cnvt->linesize, cnvt_buf, PIX_FMT,
         codec_ctx_->width, codec_ctx_->height, FRAME_BUF_ALIGNMENT);
 
     sws_ctx = sws_getContext(codec_ctx_->width, codec_ctx_->height, codec_ctx_->pix_fmt,
-        codec_ctx_->width, codec_ctx_->height, AV_PIX_FMT_RGB24, SWS_BILINEAR, nullptr, nullptr,
+        codec_ctx_->width, codec_ctx_->height, PIX_FMT, SWS_BILINEAR, nullptr, nullptr,
         nullptr);
 }
 
@@ -192,7 +194,6 @@ AVFrame *SwDecoder::decode_frame() {
             bool frm_success = (ret >= 0);
 
             while (frm_success) {
-                frame->format = AV_PIX_FMT_YUV420P10LE;
                 ret = avcodec_receive_frame(codec_ctx_, frame.get());
 
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -201,9 +202,6 @@ AVFrame *SwDecoder::decode_frame() {
                     Log(Log::ERROR) << "Error while decoding.";
                     throw DecoderError{DecoderErrorDesc::FAILURE, ret};
                 }
-
-                const char *cpu_pixfmt = av_get_pix_fmt_name((AVPixelFormat)frame->format);
-                std::cout << cpu_pixfmt << '\n';
 
                 sws_scale(sws_ctx, static_cast<uint8_t const *const *>(frame->data),
                     frame->linesize, 0, codec_ctx_->height, frame_cnvt->data, frame_cnvt->linesize);

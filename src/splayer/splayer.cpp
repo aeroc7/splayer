@@ -24,7 +24,7 @@
 
 #include <GL/glew.h>
 #include <splayer/cfg.h>
-#include <splayer/codec/decode/hw_decode.h>
+#include <splayer/codec/decode/sw_fallback.h>
 #include <splayer/display/gl_texture.h>
 #include <splayer/util/log.h>
 #include <splayer/window/window.h>
@@ -39,7 +39,7 @@ namespace splayer {
 constexpr auto WIDTH = 3840;
 constexpr auto HEIGHT = 2160;
 
-SplayerApp::SplayerApp() {
+SplayerApp::SplayerApp(const std::string &f) {
     os_window = std::make_unique<graphics::Window>();
 
     const auto pm_dims = os_window->get_primary_monitor_dims();
@@ -48,22 +48,32 @@ SplayerApp::SplayerApp() {
 
     os_window->create_window(cfg::PROJECT_NAME, window_w, window_h);
 
-    hw_decoder = std::make_unique<splayer::HwDecoder>();
+    sw_decoder = std::make_unique<splayer::SwDecoder>();
 
-    hw_decoder->open_input("/home/bennett/Downloads/Sony Surfing 4K Demo.mp4");
+    sw_decoder->open_input(f);
 }
 
 void SplayerApp::gui_loop() {
     graphics::GlTexture tex{WIDTH, HEIGHT};
 
     os_window->window_loop([&] {
-        const auto f = hw_decoder->decode_frame();
+        auto decode_t_beg = std::chrono::steady_clock::now();
+
+        const auto f = sw_decoder->decode_frame();
         if (f == nullptr) {
             return;
         }
 
-        // const auto sleep_time = 1000.0 / hw_decoder->clip_fps();
-        // std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(sleep_time)));
+        auto decode_t_end = std::chrono::steady_clock::now();
+        const auto decode_time_taken_us = std::chrono::duration_cast<std::chrono::microseconds>(decode_t_end - decode_t_beg).count();
+
+        double clip_fps_us = (1000.0 / sw_decoder->clip_fps()) * 1000.0;
+
+        if (decode_time_taken_us < clip_fps_us) {
+            clip_fps_us -= decode_time_taken_us;
+            std::cout << clip_fps_us << '\n';
+            std::this_thread::sleep_for(std::chrono::microseconds(static_cast<int64_t>(clip_fps_us)));
+        }
 
         os_window->force_consistent_aspect_r(f->width, f->height);
 

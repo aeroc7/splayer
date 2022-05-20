@@ -27,19 +27,19 @@ class Window;
 }
 
 namespace splayer {
-class HwDecoder;
+class SwDecoder;
 }
 
 namespace splayer {
 class SplayerApp final {
 public:
-    SplayerApp();
+    SplayerApp(const std::string &);
     void gui_loop();
     ~SplayerApp();
 
 private:
     std::unique_ptr<graphics::Window> os_window;
-    std::unique_ptr<splayer::HwDecoder> hw_decoder;
+    std::unique_ptr<splayer::SwDecoder> sw_decoder;
     int window_w{}, window_h{};
 };
 }  // namespace splayer

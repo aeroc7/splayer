@@ -30,11 +30,18 @@ namespace {
 std::unique_ptr<splayer::SplayerApp> splayer_app;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        std::cout << "Usage is ./splayer [filename]\n";
+        return -1;
+    }
+
+    const std::string vid_file(argv[1]);
+
     try {
-        splayer_app = std::make_unique<splayer::SplayerApp>();
+        splayer_app = std::make_unique<splayer::SplayerApp>(vid_file);
         splayer_app->gui_loop();
     } catch (const splayer::DecoderError &e) {
-        std::cout << "ERror: " << e.error_string() << '\n';
+        std::cout << "Error: " << e.error_string() << '\n';
     }
 }
