@@ -22,7 +22,7 @@
 
 #include "gl_texture.h"
 
-#include <algorithm>
+#include <utility>
 
 namespace graphics {
 
